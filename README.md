@@ -72,15 +72,38 @@
 
 ## 📦 설치
 
-### 1) 빌드한 플러그인 설치
+### 1) 설치용 zip 빌드
+
+> 빌드에는 **JDK 21** 이 필요합니다. (`JAVA_HOME` 이 21을 가리키는지 확인)
+
 ```bash
-./gradlew buildPlugin
+git clone https://github.com/geeshow/nexcore-hierarchy.git
+cd nexcore-hierarchy
+./gradlew clean buildPlugin
 ```
-생성된 `build/distributions/nexcore-hierarchy-0.1.0.zip` 을 IDE에 설치:
 
-> **Settings/Preferences → Plugins → ⚙ → Install Plugin from Disk…** → 위 zip 선택 → IDE 재시작
+빌드가 끝나면 설치용 zip 이 생성됩니다:
 
-### 2) 개발용 샌드박스 실행
+```
+build/distributions/nexcore-hierarchy-0.1.0.zip
+```
+
+> 내부 구조는 `nexcore-hierarchy/lib/nexcore-hierarchy-0.1.0.jar` 형태의 **표준 IntelliJ 플러그인 배포 패키지**입니다. 압축을 풀지 말고 zip 그대로 설치하세요.
+
+### 2) IDE 에 설치 (Install Plugin from Disk)
+
+1. IntelliJ IDEA 실행 → **Settings/Preferences** (`⌘,` / `Ctrl+Alt+S`)
+2. **Plugins** → 우측 상단 **⚙ (톱니바퀴)** → **Install Plugin from Disk…**
+3. 위에서 만든 `build/distributions/nexcore-hierarchy-0.1.0.zip` 선택
+4. **Restart IDE** 로 IDE 재시작
+5. 재시작 후 **Settings → Plugins → Installed** 목록에 **NEXCORE Hierarchy** 가 보이면 설치 완료
+
+> 제거/비활성화는 같은 화면(**Plugins → Installed → NEXCORE Hierarchy**)에서 할 수 있습니다.
+
+### 3) (선택) 개발용 샌드박스 실행
+
+설치 없이 별도 샌드박스 IDE 로 바로 띄워 확인하려면:
+
 ```bash
 ./gradlew runIde
 ```
