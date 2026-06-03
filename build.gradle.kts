@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "com.nexcore"
-version = "0.1.0"
+version = "0.2.0"
 
 repositories {
     mavenCentral()
@@ -16,9 +16,10 @@ repositories {
 
 dependencies {
     intellijPlatform {
-        // 최신 SDK로 빌드(2025.3 / build 253). sinceBuild 은 242 로 낮춰 2024.2 까지 하위호환.
-        // useInstaller=false → .dmg 설치본 대신 intellij-repository 의 zip 아티팩트 사용(해당 버전은 zip 만 존재)
-        intellijIdeaCommunity("2025.3") {
+        // 최신 SDK로 빌드(2026.1.2 / build 261). 2025.2 ~ 2026.1 대상.
+        // (2024.2 ~ 2025.3 구버전은 v0.1.0 zip 사용)
+        // useInstaller=false → .dmg 설치본 대신 intellij-repository 의 zip 아티팩트 사용
+        intellijIdeaCommunity("2026.1.2") {
             useInstaller = false
         }
         // NEXCORE 는 순수 Java 프레임웍 → Java PSI 만 의존
@@ -29,12 +30,12 @@ dependencies {
 intellijPlatform {
     pluginConfiguration {
         ideaVersion {
-            sinceBuild = "242"
-            untilBuild = "253.*"
+            sinceBuild = "252"
+            untilBuild = "261.*"
         }
     }
 
-    // 호환성 검증: 지원 범위(2024.2 ~ 2025.3)의 권장 IDE 들에 대해 plugin verifier 실행
+    // 호환성 검증: 지원 범위(2025.2 ~ 2026.1)의 권장 IDE 들에 대해 plugin verifier 실행
     pluginVerification {
         ides {
             recommended()

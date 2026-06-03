@@ -74,9 +74,16 @@
 
 ### 0) 미리 빌드된 zip 내려받기 (가장 빠름)
 
-직접 빌드하지 않고 **[Releases](https://github.com/geeshow/nexcore-hierarchy/releases/latest)** 에서 zip 을 바로 받을 수 있습니다.
+직접 빌드하지 않고 **[Releases](https://github.com/geeshow/nexcore-hierarchy/releases)** 에서 zip 을 바로 받을 수 있습니다.
+**IDE 버전에 맞는 zip** 을 받으세요. (IDE 버전: **About IntelliJ IDEA** 또는 `Help → About` 에서 확인)
 
-> ⬇️ **[nexcore-hierarchy-0.1.0.zip 내려받기](https://github.com/geeshow/nexcore-hierarchy/releases/latest/download/nexcore-hierarchy-0.1.0.zip)**
+| 내 IntelliJ 버전 | 받을 버전 | 빌드 번호 | 다운로드 |
+|---|---|---|---|
+| **2025.2 ~ 2026.1** (최신) | **v0.2.0** | `252` ~ `261.*` | ⬇️ **[nexcore-hierarchy-0.2.0.zip](https://github.com/geeshow/nexcore-hierarchy/releases/download/v0.2.0/nexcore-hierarchy-0.2.0.zip)** |
+| **2024.2 ~ 2025.3** (구버전) | **v0.1.0** | `242` ~ `253.*` | ⬇️ **[nexcore-hierarchy-0.1.0.zip](https://github.com/geeshow/nexcore-hierarchy/releases/download/v0.1.0/nexcore-hierarchy-0.1.0.zip)** |
+
+> **2026.1.2 등 최신 버전**에서 v0.1.0 zip 이 "호환되지 않음(incompatible)" 으로 설치되지 않으면, 위 표의 **v0.2.0** 을 받으세요.
+> 2025.2 / 2025.3 처럼 두 버전 모두 가능한 구간이면 **v0.2.0** 을 권장합니다.
 
 내려받은 뒤 아래 **[2) IDE 에 설치](#2-ide-에-설치-install-plugin-from-disk)** 로 바로 진행하세요. (직접 빌드하려면 1) 단계 참고)
 
@@ -90,19 +97,24 @@ cd nexcore-hierarchy
 ./gradlew clean buildPlugin
 ```
 
-빌드가 끝나면 설치용 zip 이 생성됩니다:
+빌드가 끝나면 설치용 zip 이 생성됩니다(현재 소스 = **v0.2.0**, 2025.2~2026.1 대상):
 
 ```
-build/distributions/nexcore-hierarchy-0.1.0.zip
+build/distributions/nexcore-hierarchy-0.2.0.zip
 ```
 
-> 내부 구조는 `nexcore-hierarchy/lib/nexcore-hierarchy-0.1.0.jar` 형태의 **표준 IntelliJ 플러그인 배포 패키지**입니다. 압축을 풀지 말고 zip 그대로 설치하세요.
+> 내부 구조는 `nexcore-hierarchy/lib/nexcore-hierarchy-0.2.0.jar` 형태의 **표준 IntelliJ 플러그인 배포 패키지**입니다. 압축을 풀지 말고 zip 그대로 설치하세요.
+
+> **구버전(2024.2~2025.3)용 v0.1.0 을 직접 빌드**하려면 해당 태그를 체크아웃한 뒤 빌드하세요:
+> ```bash
+> git checkout v0.1.0 && ./gradlew clean buildPlugin   # → build/distributions/nexcore-hierarchy-0.1.0.zip
+> ```
 
 ### 2) IDE 에 설치 (Install Plugin from Disk)
 
 1. IntelliJ IDEA 실행 → **Settings/Preferences** (`⌘,` / `Ctrl+Alt+S`)
 2. **Plugins** → 우측 상단 **⚙ (톱니바퀴)** → **Install Plugin from Disk…**
-3. 위에서 만든 `build/distributions/nexcore-hierarchy-0.1.0.zip` 선택
+3. 위에서 받거나 빌드한 `nexcore-hierarchy-<버전>.zip` 선택
 4. **Restart IDE** 로 IDE 재시작
 5. 재시작 후 **Settings → Plugins → Installed** 목록에 **NEXCORE Hierarchy** 가 보이면 설치 완료
 
@@ -131,10 +143,14 @@ build/distributions/nexcore-hierarchy-0.1.0.zip
 
 > `⌘⌃H` 는 macOS 기본 미할당 단축키를 사용합니다. **NEXCORE 프로젝트가 아닌 곳**에서는 IDE 기본 *Method Hierarchy* 로 자동 위임됩니다.
 
-## ⚙️ 요구사항
+## ⚙️ 요구사항 / 버전 호환
 
-- IntelliJ IDEA **2024.2 ~ 2025.3** (Community / Ultimate) — build `242` ~ `253`
-  - JetBrains **Plugin Verifier** 로 2024.2 / 2024.3 / 2025.1 / 2025.2 / 2025.3 전 버전 호환 확인
+| 플러그인 | 대상 IntelliJ IDEA (Community / Ultimate) | 빌드 번호 | 빌드 SDK |
+|---|---|---|---|
+| **v0.2.0** (최신) | **2025.2 ~ 2026.1** | `252` ~ `261.*` | IntelliJ IDEA 2026.1.2 |
+| **v0.1.0** | **2024.2 ~ 2025.3** | `242` ~ `253.*` | IntelliJ IDEA 2025.3 |
+
+- 두 버전 모두 JetBrains **Plugin Verifier** 로 해당 범위의 권장 IDE 들에 대해 호환 확인
 - 빌드: **JDK 21**, **Gradle 9.5.1**, **Kotlin 2.2**
 
 ## 🔍 동작 방식
