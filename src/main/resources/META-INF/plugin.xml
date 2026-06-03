@@ -1,0 +1,45 @@
+<idea-plugin>
+    <id>com.nexcore.callflow</id>
+    <name>NEXCORE Hierarchy</name>
+    <vendor email="" url="">kyutaepark</vendor>
+
+    <description><![CDATA[
+        NEXCORE(BizUnit) 프레임웍의 <b>컴포넌트 호출 구조</b>를 계층(Hierarchy)으로 시각화합니다.<br/>
+        선택한 PU/FU/DU 메소드를 기준으로 <b>local-call</b>(@BizUnitBind 직접 호출)과
+        프레임웍 <b>call* 메소드</b>(동기/비동기/TX분리/타컴포넌트 공유/연동거래/배치/아웃바운드)를
+        모두 추적하여 양방향 컬럼+곡선 그래프로 그립니다. 각 호출선은 종류(kind)별로
+        색·점선·TX 뱃지로 구분됩니다.<br/>
+        단축키 <b>⌘⌃H</b> 는 NEXCORE 프로젝트에서만 이 뷰를 띄우고, 그 외 프로젝트에서는
+        기본 Method Hierarchy 가 그대로 동작합니다.
+    ]]></description>
+
+    <!-- 플랫폼 + Java PSI 의존 -->
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.lang</depends>
+    <depends>com.intellij.java</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <toolWindow id="NEXCORE Hierarchy"
+                    anchor="bottom"
+                    canCloseContents="false"
+                    factoryClass="com.nexcore.callflow.CallFlowToolWindowFactory"/>
+    </extensions>
+
+    <actions>
+        <!-- 우클릭 메뉴 -->
+        <action id="com.nexcore.callflow.ShowNexcoreHierarchy"
+                class="com.nexcore.callflow.ShowCallFlowAction"
+                text="Show NEXCORE Hierarchy"
+                description="현재 커서 위치의 BizUnit 메소드를 기준으로 컴포넌트 호출 관계도를 표시">
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+        </action>
+
+        <!-- ⌘⌃H (macOS 기본 미할당) : NEXCORE 프로젝트면 이 뷰, 아니면 기본 Method Hierarchy 위임 -->
+        <action id="com.nexcore.callflow.NexcoreHierarchy"
+                class="com.nexcore.callflow.NexcoreHierarchyAction"
+                text="NEXCORE Hierarchy"
+                description="NEXCORE 컴포넌트 호출 계층 표시(타 프로젝트에서는 Method Hierarchy)">
+            <keyboard-shortcut keymap="$default" first-keystroke="control meta H"/>
+        </action>
+    </actions>
+</idea-plugin>

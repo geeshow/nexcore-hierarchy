@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NEXCORE Hierarchy</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --panel: #171a22;
+    --panel-2: #1d212b;
+    --border: #2a2f3a;
+    --text: #e6e9ef;
+    --muted: #8b93a3;
+    --accent: #4f8cff;
+    --accent-soft: rgba(79, 140, 255, 0.15);
+    --purple: #a78bfa;
+    /* 노드 타입 색 */
+    --pm: #4f8cff;
+    --fm: #4ade80;
+    --dm: #fbbf24;
+    --svc: #22d3ee;
+    --batch: #fb923c;
+    --out: #f472b6;
+    /* 엣지 카테고리 색 */
+    --cat-local: #8b93a3;
+    --cat-cross: #4f8cff;
+    --cat-linked: #4ade80;
+    --cat-batch: #fb923c;
+    --cat-out: #22d3ee;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "SF Mono", "JetBrains Mono", ui-monospace, Menlo, monospace;
+    font-size: 13px;
+    -webkit-font-smoothing: antialiased;
+  }
+  header {
+    padding: 18px 28px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  header h1 { font-size: 15px; font-weight: 600; margin: 0; letter-spacing: 0.3px; }
+  header .sub { color: var(--muted); font-size: 12px; }
+  header .toolbar { margin-left: auto; display: flex; gap: 8px; }
+  .tbtn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 11px; border-radius: 7px; cursor: pointer; user-select: none;
+    background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+    font-size: 12px; font-family: inherit; transition: background 0.16s, border-color 0.16s;
+  }
+  .tbtn:hover { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+  .tbtn:active { transform: translateY(1px); }
+  .tbtn.busy { opacity: 0.6; pointer-events: none; }
+  .tbtn.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+  .tbtn .mi { width: 16px; height: 16px; flex-shrink: 0; fill: currentColor; display: block; }
+  .tbtn .lbl { white-space: nowrap; }
+  header .tb-sep { width: 1px; align-self: stretch; background: var(--border); margin: 2px 2px; }
+
+  .breadcrumb {
+    display: flex; align-items: center; gap: 8px;
+    padding: 12px 28px; border-bottom: 1px solid var(--border);
+    flex-wrap: wrap; background: var(--panel);
+  }
+  .crumb {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 5px 12px; border-radius: 6px;
+    background: var(--accent-soft); color: var(--accent);
+    font-size: 12px; border: 1px solid rgba(79,140,255,0.3);
+  }
+  .crumb .cls { color: var(--muted); }
+  .crumb.base {
+    background: rgba(167,139,250,0.18); color: var(--purple);
+    border-color: rgba(167,139,250,0.45); font-weight: 600;
+  }
+  .crumb-sep { color: var(--muted); }
+
+  .board {
+    display: flex; gap: 0; padding: 28px;
+    overflow-x: auto; align-items: flex-start; position: relative;
+  }
+  #connectors { position: absolute; top: 0; left: 0; pointer-events: none; z-index: 0; overflow: visible; }
+  .column {
+    min-width: 300px; flex-shrink: 0;
+    display: flex; flex-direction: column; gap: 10px;
+    position: relative; padding: 0 48px; z-index: 1;
+  }
+  .column:first-child { padding-left: 0; }
+  .col-title {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
+    color: var(--muted); margin-bottom: 4px; padding-left: 2px;
+  }
+
+  .edge { fill: none; stroke: var(--border); stroke-width: 1.5; transition: stroke 0.16s, stroke-width 0.16s; }
+  .edge.cat-local  { stroke: var(--cat-local); }
+  .edge.cat-cross  { stroke: var(--cat-cross); }
+  .edge.cat-linked { stroke: var(--cat-linked); }
+  .edge.cat-batch  { stroke: var(--cat-batch); }
+  .edge.cat-out    { stroke: var(--cat-out); }
+  .edge.active { stroke-width: 2.5; }
+  .edge-badge { font-size: 9px; font-weight: 700; fill: var(--bg); }
+  .edge-badge-bg { rx: 3; }
+  .edge-label { font-size: 9px; fill: var(--muted); }
+
+  .node {
+    border: 1px solid var(--border); border-radius: 10px; cursor: pointer;
+    transition: border-color 0.16s, transform 0.16s, box-shadow 0.16s;
+    position: relative; display: flex; flex-direction: row; align-items: stretch;
+    overflow: hidden; background: var(--panel);
+  }
+  .node:hover { border-color: var(--accent); transform: translateY(-1px); }
+  .node.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), 0 6px 20px -8px rgba(79,140,255,0.5); }
+  .node-main {
+    flex: 1 1 auto; min-width: 0; padding: 11px 14px;
+    display: flex; flex-direction: column; gap: 6px;
+    background: var(--panel); transition: background 0.16s;
+  }
+  .node:hover .node-main { background: var(--panel-2); }
+  .node.selected .node-main { background: linear-gradient(180deg, var(--accent-soft), var(--panel-2)); }
+  .node.root .node-main { background: linear-gradient(180deg, rgba(167,139,250,0.12), var(--panel-2)); }
+  .node.root { border-color: var(--purple); }
+  .node.external .node-main { background: repeating-linear-gradient(135deg, var(--panel), var(--panel) 8px, var(--panel-2) 8px, var(--panel-2) 9px); }
+
+  .node-jump {
+    flex: 0 0 22%; display: flex; align-items: center; justify-content: center;
+    border-left: 1px solid var(--border); color: var(--muted);
+    font-size: 16px; background: rgba(255,255,255,0.015);
+    transition: background 0.16s, color 0.16s;
+  }
+  .node-jump:hover { background: var(--accent-soft); color: var(--accent); }
+  .node-jump.left { border-left: none; border-right: 1px solid var(--border); }
+
+  .node-head { display: flex; align-items: center; gap: 8px; }
+  .badge {
+    font-size: 10px; padding: 2px 7px; border-radius: 5px;
+    font-weight: 700; letter-spacing: 0.4px; flex-shrink: 0;
+  }
+  .badge.pm    { background: rgba(79,140,255,0.16); color: var(--pm); }
+  .badge.fm    { background: rgba(74,222,128,0.16); color: var(--fm); }
+  .badge.dm    { background: rgba(251,191,36,0.16); color: var(--dm); }
+  .badge.svc   { background: rgba(34,211,238,0.16); color: var(--svc); }
+  .badge.batch { background: rgba(251,146,60,0.16); color: var(--batch); }
+  .badge.out   { background: rgba(244,114,182,0.16); color: var(--out); }
+
+  .method-name { font-weight: 600; font-size: 13px; color: var(--text); }
+  .method-name .paren { color: var(--muted); font-weight: 400; }
+  .node-desc {
+    font-size: 12px; color: var(--text); opacity: 0.82;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .class-name { font-size: 11px; color: var(--muted); }
+  .node-meta { display: flex; align-items: center; gap: 6px; margin-top: 2px; flex-wrap: wrap; }
+
+  /* 호출 종류(kind) 칩 */
+  .kind-chip {
+    font-size: 10px; padding: 1px 7px; border-radius: 10px;
+    border: 1px solid transparent; display: inline-flex; align-items: center; gap: 4px;
+  }
+  .kind-chip.cat-local  { color: var(--cat-local);  border-color: rgba(139,147,163,0.4); background: rgba(139,147,163,0.1); }
+  .kind-chip.cat-cross  { color: var(--cat-cross);  border-color: rgba(79,140,255,0.4);  background: rgba(79,140,255,0.1); }
+  .kind-chip.cat-linked { color: var(--cat-linked); border-color: rgba(74,222,128,0.4);  background: rgba(74,222,128,0.1); }
+  .kind-chip.cat-batch  { color: var(--cat-batch);  border-color: rgba(251,146,60,0.4);  background: rgba(251,146,60,0.1); }
+  .kind-chip.cat-out    { color: var(--cat-out);    border-color: rgba(34,211,238,0.4);  background: rgba(34,211,238,0.1); }
+  .kind-chip.async { border-style: dashed; }
+
+  .call-count { font-size: 10px; color: var(--muted); margin-left: auto; }
+  .chevron { color: var(--muted); font-size: 14px; transition: color 0.16s; }
+  .node.selected .chevron { color: var(--accent); }
+  .node.leaf .chevron { visibility: hidden; }
+
+  .empty-hint { color: var(--muted); font-size: 12px; padding: 16px 4px; font-style: italic; }
+
+  .legend {
+    display: flex; gap: 14px; padding: 12px 28px; border-top: 1px solid var(--border);
+    color: var(--muted); font-size: 11px; flex-wrap: wrap; align-items: center;
+  }
+  .legend .grp-label { color: var(--muted); opacity: 0.6; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; }
+  .legend .sep { width: 1px; height: 14px; background: var(--border); }
+  .legend .toggle {
+    cursor: pointer; user-select: none; padding: 3px 8px; border-radius: 6px;
+    border: 1px solid transparent; display: inline-flex; align-items: center; gap: 6px;
+    transition: background 0.16s, opacity 0.16s, border-color 0.16s;
+  }
+  .legend .toggle:hover { background: var(--panel-2); border-color: var(--border); }
+  .legend .toggle.off { opacity: 0.35; text-decoration: line-through; }
+  .dot { width: 9px; height: 9px; border-radius: 3px; }
+  .line { width: 16px; height: 0; border-top: 2px solid currentColor; }
+  .line.dashed { border-top-style: dashed; }
+</style>
+</head>
+<body>
+  <header>
+    <h1 id="title">🔀 NEXCORE Hierarchy</h1>
+    <span class="sub">노드 = 선언으로 이동 · <b>↳</b> = 실제 호출 코드 줄로 이동 · 호출선 색/점선/TX = 호출 방식</span>
+    <div class="toolbar">
+      <button class="tbtn" id="btn-expand" title="기준 메소드와 연결된 모든 노드를 펼쳐서 표시">
+        <svg class="mi" viewBox="0 0 24 24"><path d="M21 11V3h-8l3.29 3.29-4.3 4.29 1.42 1.42 4.29-4.3L21 11zM3 13v8h8l-3.29-3.29 4.3-4.29-1.42-1.42-4.29 4.3L3 13z"/></svg><span class="lbl">전체 확장</span>
+      </button>
+      <button class="tbtn" id="btn-collapse" title="기준 메소드와 1차로 연결된 노드만 표시">
+        <svg class="mi" viewBox="0 0 24 24"><path d="M22 3.41 16.71 8.7 20 12h-8V4l3.29 3.29L20.59 2 22 3.41zM3.41 22l5.29-5.29L12 20v-8H4l3.29 3.29L2 20.59 3.41 22z"/></svg><span class="lbl">전체 축소</span>
+      </button>
+      <span class="tb-sep"></span>
+      <button class="tbtn" id="btn-refresh" title="현재 메소드 기준으로 다시 분석">
+        <svg class="mi" viewBox="0 0 24 24"><path d="M17.65 6.35A7.95 7.95 0 0 0 12 4a8 8 0 1 0 7.73 10h-2.08A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg><span class="lbl">새로고침</span>
+      </button>
+      <button class="tbtn" id="btn-copy" title="헤더~범례 전체를 이미지로 클립보드에 복사">
+        <svg class="mi" viewBox="0 0 24 24"><path d="M16 1H4a2 2 0 0 0-2 2v14h2V3h12V1zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H8V7h11v14z"/></svg><span class="lbl">이미지 복사</span>
+      </button>
+      <button class="tbtn" id="btn-save" title="헤더~범례 전체를 PNG 파일로 저장">
+        <svg class="mi" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg><span class="lbl">이미지 저장</span>
+      </button>
+    </div>
+  </header>
+
+  <div class="breadcrumb" id="breadcrumb"></div>
+  <div class="board" id="board"></div>
+
+  <div class="legend" id="legend">
+    <span class="grp-label">유닛</span>
+    <span class="toggle" data-type="pm"><span class="dot" style="background:var(--pm)"></span> PM</span>
+    <span class="toggle" data-type="fm"><span class="dot" style="background:var(--fm)"></span> FM</span>
+    <span class="toggle" data-type="dm"><span class="dot" style="background:var(--dm)"></span> DM</span>
+    <span class="toggle" data-type="svc"><span class="dot" style="background:var(--svc)"></span> 연동거래</span>
+    <span class="toggle" data-type="batch"><span class="dot" style="background:var(--batch)"></span> 배치</span>
+    <span class="toggle" data-type="out"><span class="dot" style="background:var(--out)"></span> 아웃바운드</span>
+    <span class="sep"></span>
+    <span class="grp-label">호출</span>
+    <span class="toggle" data-cat="local"  style="color:var(--cat-local)"><span class="line"></span> 동컴포넌트</span>
+    <span class="toggle" data-cat="cross"  style="color:var(--cat-cross)"><span class="line"></span> 타컴포넌트</span>
+    <span class="toggle" data-cat="linked" style="color:var(--cat-linked)"><span class="line"></span> 연동거래</span>
+    <span class="toggle" data-cat="batch"  style="color:var(--cat-batch)"><span class="line"></span> 배치</span>
+    <span class="toggle" data-cat="out"    style="color:var(--cat-out)"><span class="line"></span> 아웃바운드</span>
+    <span class="sep"></span>
+    <span><span class="line dashed" style="color:var(--muted)"></span> 비동기</span>
+    <span style="border:1px solid var(--border);border-radius:3px;padding:0 4px;color:var(--muted)">TX</span> 새 트랜잭션
+  </div>
+
+<script>
+// ----- 플러그인 주입 데이터 -----
+let graph = /*__GRAPH__*/{};
+let BASE = /*__BASE__*/"";
+
+// 호출 종류 메타(서버 CallKind 와 1:1)
+const KIND = {
+  'local-call':                   {cat:'local',  async:false, newTx:false, tag:''},
+  'local-new-tx':                 {cat:'local',  async:false, newTx:true,  tag:'TX'},
+  'shared-call':                  {cat:'cross',  async:false, newTx:false, tag:''},
+  'shared-new-tx':                {cat:'cross',  async:false, newTx:true,  tag:'TX'},
+  'linked-tx-sync':               {cat:'linked', async:false, newTx:false, tag:''},
+  'linked-tx-sync-new':           {cat:'linked', async:false, newTx:true,  tag:'TX'},
+  'linked-tx-async-now':          {cat:'linked', async:true,  newTx:false, tag:''},
+  'linked-tx-async-after-commit': {cat:'linked', async:true,  newTx:false, tag:'AC'},
+  'linked-tx-delay-async':        {cat:'linked', async:true,  newTx:false, tag:'⏱'},
+  'batch-now':                    {cat:'batch',  async:false, newTx:false, tag:''},
+  'batch-after-commit':           {cat:'batch',  async:false, newTx:false, tag:'AC'},
+  'fep-sync':                     {cat:'out',    async:false, newTx:false, tag:''},
+  'edw-sync':                     {cat:'out',    async:false, newTx:false, tag:''},
+  'fep-async-now':                {cat:'out',    async:true,  newTx:false, tag:''},
+  'fep-async-after-commit':       {cat:'out',    async:true,  newTx:false, tag:'AC'},
+  'kafka-publish':                {cat:'out',    async:true,  newTx:false, tag:''},
+};
+const KIND_LABEL = {
+  'local-call':'직접호출','local-new-tx':'직접·새TX','shared-call':'공유호출','shared-new-tx':'공유·새TX',
+  'linked-tx-sync':'연동동기','linked-tx-sync-new':'연동동기·새TX','linked-tx-async-now':'연동비동기',
+  'linked-tx-async-after-commit':'연동비동기·커밋후','linked-tx-delay-async':'연동지연비동기',
+  'batch-now':'배치즉시','batch-after-commit':'배치커밋후','fep-sync':'FEP동기','edw-sync':'EDW동기',
+  'fep-async-now':'FEP비동기','fep-async-after-commit':'FEP비동기·커밋후','kafka-publish':'Kafka발행',
+};
+const typeLabel = { pm:'PM', fm:'FM', dm:'DM', svc:'SVC', batch:'BATCH', out:'OUT' };
+
+function escHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function nodeOf(k){ return graph[k] || {name:k, desc:'', cls:'?', comp:'', type:'fm', internal:false, calls:[]}; }
+function nameOf(k){ return nodeOf(k).name; }
+function catOf(kind){ return (KIND[kind] || {cat:'local'}).cat; }
+
+// ----- 엣지/인덱스 -----
+function calleeEdges(k){ return (graph[k] && graph[k].calls) || []; }   // [{to,kind}]
+function edgeKind(from, to){ const e = calleeEdges(from).find(x => x.to === to); return e ? e.kind : null; }
+
+let callersIndex = {};
+function buildCallersIndex(){
+  callersIndex = {};
+  for (const k in graph)
+    calleeEdges(k).forEach(e => { (callersIndex[e.to] = callersIndex[e.to] || []).push({from:k, kind:e.kind}); });
+}
+buildCallersIndex();
+
+// ----- 필터 (노드 타입 + 호출 카테고리) -----
+const hiddenTypes = {};
+const hiddenCats = {};
+function showEdge(from, to, kind){
+  if (hiddenCats[catOf(kind)]) return false;
+  if (to !== BASE && hiddenTypes[nodeOf(to).type]) return false;
+  if (from !== BASE && hiddenTypes[nodeOf(from).type]) return false;
+  return true;
+}
+function calleeItems(parent){ return calleeEdges(parent).filter(e => showEdge(parent, e.to, e.kind)).map(e => e.to); }
+function callerItems(child){ return (callersIndex[child] || []).filter(x => showEdge(x.from, child, x.kind)).map(x => x.from); }
+
+// 선택 경로 (둘 다 BASE 에서 시작)
+let calleePath = [BASE];
+let callerPath = [BASE];
+
+// 뷰 모드: 'path'(노드 클릭으로 한 경로씩 드릴다운) | 'expanded'(연결된 모든 노드 전개)
+let viewMode = 'path';
+
+let displayColumns = [];
+let baseColIndex = 0;
+const nodeEls = {};
+
+// 확장 모드에서, 컬럼 ci 의 노드 key 가 BASE 쪽으로 갖는 호출선 [from,to] (없으면 null)
+function edgeTowardBase(ci, key){
+  if (ci === baseColIndex) return null;
+  if (ci > baseColIndex){            // callee 쪽: 왼쪽(ci-1) 의 부모가 key 를 호출
+    const left = displayColumns[ci - 1];
+    for (const p of left.items) if (edgeKind(p, key)) return [p, key];
+  } else {                           // caller 쪽: key 가 오른쪽(ci+1) 노드를 호출
+    const right = displayColumns[ci + 1];
+    for (const c of right.items) if (edgeKind(key, c)) return [key, c];
+  }
+  return null;
+}
+
+// 전체 확장: BASE 에서 양방향으로 BFS 하여 레벨별 컬럼(유니온)을 만든다.
+function buildColumnsExpanded(){
+  const calleeCols = [];
+  let frontier = [BASE];
+  const cseen = new Set([BASE]);
+  while (calleeCols.length < 12){
+    const next = [];
+    frontier.forEach(p => calleeItems(p).forEach(c => { if (!cseen.has(c)){ cseen.add(c); next.push(c); } }));
+    if (next.length === 0) break;
+    calleeCols.push({ items: next, selected: null, side: "callee", ref: null });
+    frontier = next;
+  }
+  const callerCols = [];
+  frontier = [BASE];
+  const rseen = new Set([BASE]);
+  while (callerCols.length < 12){
+    const next = [];
+    frontier.forEach(ch => callerItems(ch).forEach(p => { if (!rseen.has(p)){ rseen.add(p); next.push(p); } }));
+    if (next.length === 0) break;
+    callerCols.push({ items: next, selected: null, side: "caller", ref: null });
+    frontier = next;
+  }
+  callerCols.reverse();
+  baseColIndex = callerCols.length;
+  displayColumns = [...callerCols, { items: [BASE], selected: BASE, side: "base", ref: null }, ...calleeCols];
+}
+
+function buildColumns(){
+  if (viewMode === 'expanded'){ buildColumnsExpanded(); return; }
+  const calleeCols = [];
+  for (let c = 0; c <= calleePath.length; c++){
+    const items = c === 0 ? [BASE] : calleeItems(calleePath[c - 1]);
+    if (items.length === 0) break;
+    calleeCols.push({ items, selected: calleePath[c] || null, side: c === 0 ? "base" : "callee", ref: c === 0 ? null : calleePath[c - 1] });
+  }
+  const callerCols = [];
+  for (let d = 1; d <= callerPath.length; d++){
+    const items = callerItems(callerPath[d - 1]);
+    if (items.length === 0) break;
+    callerCols.push({ items, selected: callerPath[d] || null, side: "caller", ref: callerPath[d - 1] });
+  }
+  callerCols.reverse();
+  baseColIndex = callerCols.length;
+  displayColumns = [...callerCols, ...calleeCols];
+}
+
+function render(){
+  const board = document.getElementById("board");
+  board.innerHTML = "";
+  for (const k in nodeEls) delete nodeEls[k];
+
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.id = "connectors";
+  board.appendChild(svg);
+
+  buildColumns();
+
+  displayColumns.forEach((colDesc, ci) => {
+    const column = document.createElement("div");
+    column.className = "column";
+
+    const title = document.createElement("div");
+    title.className = "col-title";
+    if (colDesc.side === "base")        title.textContent = "● 기준 메소드";
+    else if (colDesc.side === "caller") title.innerHTML = colDesc.ref ? ("↤ " + nameOf(colDesc.ref) + " 를 호출") : "↤ 호출";
+    else                                title.textContent = colDesc.ref ? (nameOf(colDesc.ref) + " 가 호출 →") : "호출 →";
+    column.appendChild(title);
+
+    colDesc.items.forEach(key => {
+      const data = nodeOf(key);
+      const isSelected = colDesc.selected === key;
+      const isBase = colDesc.side === "base";
+      const outCount = colDesc.side === "caller" ? callerItems(key).length : calleeItems(key).length;
+      const isLeaf = outCount === 0;
+
+      const isExternalNode = data.type === "svc" || data.type === "batch" || data.type === "out";
+      const node = document.createElement("div");
+      node.className = "node" + (isSelected ? " selected" : "") + (isBase ? " root" : "") +
+                       (isLeaf ? " leaf" : "") + (isExternalNode ? " external" : "");
+
+      const countLabel = colDesc.side === "caller"
+        ? (isLeaf ? "entry" : outCount + " ↤")
+        : (isLeaf ? "leaf"  : "→ " + outCount);
+      const chev = colDesc.side === "caller" ? "‹" : "›";
+
+      // 이 노드와 연결된 호출선(edge): caller=>callee.
+      let callEdge = null;
+      if (viewMode === 'expanded') callEdge = edgeTowardBase(ci, key);
+      else if (colDesc.side === "callee" && colDesc.ref) callEdge = [colDesc.ref, key];
+      else if (colDesc.side === "caller" && colDesc.ref) callEdge = [key, colDesc.ref];
+
+      let kindChip = "";
+      if (callEdge){
+        const kind = edgeKind(callEdge[0], callEdge[1]);
+        if (kind){
+          const meta = KIND[kind] || {cat:'local', async:false};
+          kindChip = `<span class="kind-chip cat-${meta.cat}${meta.async ? " async" : ""}" title="${kind}">${KIND_LABEL[kind] || kind}</span>`;
+        }
+      }
+      const compCls = (data.comp ? data.comp + "·" : "") + data.cls;
+      const isMethodNode = data.type === "pm" || data.type === "fm" || data.type === "dm";
+      const paren = isMethodNode ? '<span class="paren">()</span>' : '';
+      const jumpLeft = colDesc.side === "callee";
+      const descHtml = data.desc ? `<div class="node-desc" title="${escHtml(data.desc)}">${escHtml(data.desc)}</div>` : '';
+      const mainHtml = `
+        <div class="node-main">
+          <div class="node-head">
+            <span class="badge ${data.type}">${typeLabel[data.type] || data.type}</span>
+            <span class="method-name">${data.name}${paren}</span>
+          </div>
+          ${descHtml}
+          <div class="node-meta">
+            <span class="class-name">${compCls}</span>
+            ${kindChip}
+            <span class="call-count">${countLabel}</span>
+            <span class="chevron">${chev}</span>
+          </div>
+        </div>`;
+      const jumpHtml = callEdge
+        ? `<div class="node-jump${jumpLeft ? " left" : ""}" title="실제 호출 코드 줄로 이동">↳</div>`
+        : ``;
+      node.innerHTML = jumpLeft ? (jumpHtml + mainHtml) : (mainHtml + jumpHtml);
+
+      // 메인 클릭: 내부 노드는 선언으로 이동, 외부 노드는 호출 위치로 이동. + 드릴다운.
+      node.querySelector(".node-main").addEventListener("click", () => {
+        if (data.internal) { try { window.__navigate && window.__navigate(key); } catch (e) {} }
+        else if (callEdge) { try { window.__navigateCall && window.__navigateCall(callEdge[0], callEdge[1]); } catch (e) {} }
+        if (viewMode === 'expanded') return;   // 확장 모드는 레이아웃 고정(이동만)
+        if (colDesc.side === "base") { calleePath = [BASE]; callerPath = [BASE]; }
+        else if (colDesc.side === "callee") {
+          const level = ci - baseColIndex;
+          calleePath = calleePath.slice(0, level); calleePath.push(key);
+        } else {
+          const level = baseColIndex - ci;
+          callerPath = callerPath.slice(0, level); callerPath.push(key);
+        }
+        render();
+      });
+
+      const jump = node.querySelector(".node-jump");
+      if (jump && callEdge){
+        jump.addEventListener("click", (e) => {
+          e.stopPropagation();
+          try { window.__navigateCall && window.__navigateCall(callEdge[0], callEdge[1]); } catch (e2) {}
+        });
+      }
+
+      column.appendChild(node);
+      nodeEls[ci + ":" + key] = node;
+    });
+
+    board.appendChild(column);
+  });
+
+  renderBreadcrumb();
+  drawConnectors();
+  updateModeButtons();
+}
+
+function drawConnectors(){
+  const board = document.getElementById("board");
+  const svg = document.getElementById("connectors");
+  svg.setAttribute("width", board.scrollWidth);
+  svg.setAttribute("height", board.scrollHeight);
+  while (svg.firstChild) svg.removeChild(svg.firstChild);
+
+  const boardRect = board.getBoundingClientRect();
+  const rel = el => {
+    const r = el.getBoundingClientRect();
+    return {
+      left:  r.left  - boardRect.left + board.scrollLeft,
+      right: r.right - boardRect.left + board.scrollLeft,
+      midY:  r.top   - boardRect.top  + board.scrollTop + r.height / 2,
+    };
+  };
+  const SVGNS = "http://www.w3.org/2000/svg";
+  const drawEdge = (leftKey, leftCi, rightKey, rightCi, kind, active) => {
+    const lEl = nodeEls[leftCi + ":" + leftKey];
+    const rEl = nodeEls[rightCi + ":" + rightKey];
+    if (!lEl || !rEl) return;
+    const l = rel(lEl), r = rel(rEl);
+    const x1 = l.right, y1 = l.midY, x2 = r.left, y2 = r.midY;
+    const dx = (x2 - x1) * 0.5;
+    const meta = KIND[kind] || {cat:'local', async:false, newTx:false, tag:''};
+    const p = document.createElementNS(SVGNS, "path");
+    p.setAttribute("d", `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`);
+    p.setAttribute("class", "edge cat-" + meta.cat + (active ? " active" : ""));
+    if (meta.async) p.setAttribute("stroke-dasharray", "6 4");
+    const t = document.createElementNS(SVGNS, "title");
+    t.textContent = KIND_LABEL[kind] || kind;
+    p.appendChild(t);
+    svg.appendChild(p);
+
+    // 새 TX / 커밋후 / 지연 마커
+    if (meta.tag){
+      const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+      const w = meta.tag.length * 7 + 8;
+      const bg = document.createElementNS(SVGNS, "rect");
+      bg.setAttribute("x", mx - w / 2); bg.setAttribute("y", my - 8);
+      bg.setAttribute("width", w); bg.setAttribute("height", 14);
+      bg.setAttribute("rx", 3);
+      bg.setAttribute("fill", "var(--cat-" + meta.cat + ")");
+      svg.appendChild(bg);
+      const txt = document.createElementNS(SVGNS, "text");
+      txt.setAttribute("x", mx); txt.setAttribute("y", my + 2);
+      txt.setAttribute("text-anchor", "middle");
+      txt.setAttribute("class", "edge-badge");
+      txt.textContent = meta.tag;
+      svg.appendChild(txt);
+    }
+  };
+
+  if (viewMode === 'expanded'){
+    // 확장 모드: 인접 컬럼의 모든 (좌→우) 호출선을 그린다.
+    for (let ci = 0; ci < displayColumns.length - 1; ci++){
+      const L = displayColumns[ci], R = displayColumns[ci + 1];
+      L.items.forEach(kl => R.items.forEach(kr => {
+        const kind = edgeKind(kl, kr);
+        if (kind && showEdge(kl, kr, kind)) drawEdge(kl, ci, kr, ci + 1, kind, false);
+      }));
+    }
+    return;
+  }
+
+  for (let ci = 0; ci < displayColumns.length - 1; ci++){
+    const L = displayColumns[ci], R = displayColumns[ci + 1];
+    if (ci + 1 <= baseColIndex){
+      const target = R.selected;
+      if (!target) continue;
+      L.items.forEach(k => {
+        const kind = edgeKind(k, target);
+        if (kind && showEdge(k, target, kind)) drawEdge(k, ci, target, ci + 1, kind, k === L.selected);
+      });
+    } else {
+      const source = L.selected;
+      if (!source) continue;
+      R.items.forEach(k => {
+        const kind = edgeKind(source, k);
+        if (kind && showEdge(source, k, kind)) drawEdge(source, ci, k, ci + 1, kind, k === R.selected);
+      });
+    }
+  }
+}
+
+window.addEventListener("resize", drawConnectors);
+
+function setupFilters(){
+  document.querySelectorAll("#legend .toggle").forEach(el => {
+    const type = el.getAttribute("data-type");
+    const cat = el.getAttribute("data-cat");
+    el.addEventListener("click", () => {
+      if (type){ hiddenTypes[type] ? delete hiddenTypes[type] : hiddenTypes[type] = true; el.classList.toggle("off", !!hiddenTypes[type]); }
+      else if (cat){ hiddenCats[cat] ? delete hiddenCats[cat] : hiddenCats[cat] = true; el.classList.toggle("off", !!hiddenCats[cat]); }
+      render();
+    });
+  });
+}
+
+function renderBreadcrumb(){
+  const bc = document.getElementById("breadcrumb");
+  bc.innerHTML = "";
+  const full = [...callerPath.slice(1).reverse(), BASE, ...calleePath.slice(1)];
+  full.forEach((key, i) => {
+    if (i > 0){
+      const sep = document.createElement("span");
+      sep.className = "crumb-sep"; sep.textContent = "→";
+      bc.appendChild(sep);
+    }
+    const d = nodeOf(key);
+    const c = document.createElement("span");
+    c.className = "crumb" + (key === BASE ? " base" : "");
+    const compCls = (d.comp ? d.comp + "·" : "") + d.cls;
+    const isMethodNode = d.type === "pm" || d.type === "fm" || d.type === "dm";
+    c.innerHTML = `<span class="cls">${compCls}.</span>${d.name}${isMethodNode ? "()" : ""}`;
+    bc.appendChild(c);
+  });
+}
+
+// ----- 이미지 렌더링(foreignObject → canvas) -----
+function collectCss(){
+  let css = "";
+  for (const sheet of document.styleSheets){
+    try { for (const rule of sheet.cssRules) css += rule.cssText + "\n"; } catch (e) {}
+  }
+  return css;
+}
+// 헤더(메뉴 toolbar 제외) → 브레드크럼 → 보드(전체) → 범례 를 한 장으로 캡처.
+async function captureToPng(scale){
+  const board = document.getElementById("board");
+  const header = document.querySelector("header");
+  const breadcrumb = document.getElementById("breadcrumb");
+  const legend = document.getElementById("legend");
+  const bg = getComputedStyle(document.body).backgroundColor || "#0f1117";
+  const boardW = Math.max(board.scrollWidth, board.clientWidth);
+  const fullW = Math.max(document.documentElement.clientWidth, boardW);
+
+  const wrap = document.createElement("div");
+  wrap.style.width = fullW + "px";
+  wrap.style.background = bg;
+  // body 셀렉터는 캡처 래퍼(div)에 안 먹으므로 색/폰트를 명시(제목 등 상속 텍스트가 검게 나오는 문제 방지)
+  const bodyStyle = getComputedStyle(document.body);
+  wrap.style.color = bodyStyle.color;
+  wrap.style.fontFamily = bodyStyle.fontFamily;
+  wrap.style.fontSize = bodyStyle.fontSize;
+
+  const hClone = header.cloneNode(true);
+  hClone.querySelectorAll(".toolbar").forEach(el => el.remove());   // 메뉴 제외
+  const bcClone = breadcrumb.cloneNode(true);
+  const boardClone = board.cloneNode(true);                         // 보드 내부 레이아웃/연결선은 유지
+  boardClone.style.overflow = "visible";
+  boardClone.style.width = boardW + "px";
+  const lgClone = legend.cloneNode(true);
+  [hClone, bcClone, boardClone, lgClone].forEach(n => wrap.appendChild(n));
+
+  // 오프스크린으로 전체 높이 측정
+  const holder = document.createElement("div");
+  holder.style.position = "fixed"; holder.style.left = "-99999px"; holder.style.top = "0";
+  holder.style.width = fullW + "px";
+  holder.appendChild(wrap);
+  document.body.appendChild(holder);
+  const fullH = wrap.scrollHeight;
+  document.body.removeChild(holder);
+
+  const css = collectCss();
+  const xhtml = new XMLSerializer().serializeToString(wrap);
+  const svg =
+    '<svg xmlns="http://www.w3.org/2000/svg" width="' + fullW + '" height="' + fullH + '">' +
+      '<foreignObject x="0" y="0" width="' + fullW + '" height="' + fullH + '">' +
+        '<div xmlns="http://www.w3.org/1999/xhtml" style="width:' + fullW + 'px;height:' + fullH + 'px;background:' + bg + ';">' +
+          '<style>' + css + '</style>' + xhtml +
+        '</div>' +
+      '</foreignObject></svg>';
+  const url = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+
+  const img = new Image();
+  await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = url; });
+
+  const s = scale || 2;
+  const canvas = document.createElement("canvas");
+  canvas.width = fullW * s; canvas.height = fullH * s;
+  const ctx = canvas.getContext("2d");
+  ctx.scale(s, s);
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, fullW, fullH);
+  ctx.drawImage(img, 0, 0);
+  return canvas.toDataURL("image/png");
+}
+
+function updateModeButtons(){
+  const ex = document.getElementById("btn-expand");
+  const co = document.getElementById("btn-collapse");
+  if (ex) ex.classList.toggle("on", viewMode === 'expanded');
+  if (co) co.classList.toggle("on", viewMode !== 'expanded');
+}
+
+function setupToolbar(){
+  const refresh = document.getElementById("btn-refresh");
+  const copy = document.getElementById("btn-copy");
+  const save = document.getElementById("btn-save");
+  document.getElementById("btn-expand").addEventListener("click", () => { viewMode = 'expanded'; render(); });
+  document.getElementById("btn-collapse").addEventListener("click", () => {
+    viewMode = 'path'; calleePath = [BASE]; callerPath = [BASE]; render();
+  });
+  refresh.addEventListener("click", () => { try { window.__refresh && window.__refresh(); } catch (e) {} });
+
+  async function emit(btn, label, fn){
+    const lbl = btn.querySelector(".lbl");
+    const orig = lbl ? lbl.textContent : "";
+    const setLbl = t => { if (lbl) lbl.textContent = t; };
+    btn.classList.add("busy"); setLbl("처리중…");
+    try {
+      const data = await captureToPng(2);
+      fn(data);
+      setLbl(label);
+    } catch (e) {
+      setLbl("실패");
+    }
+    setTimeout(() => { btn.classList.remove("busy"); setLbl(orig); }, 1200);
+  }
+  copy.addEventListener("click", () => emit(copy, "복사됨 ✓", d => window.__copyImage && window.__copyImage(d)));
+  save.addEventListener("click", () => emit(save, "저장 ✓", d => window.__saveImage && window.__saveImage(d)));
+}
+
+setupFilters();
+setupToolbar();
+if (BASE && graph[BASE]){
+  document.getElementById("title").textContent = "🔀 " + nameOf(BASE) + (nodeOf(BASE).internal ? "()" : "");
+  render();
+} else {
+  document.getElementById("board").innerHTML =
+    '<div class="empty-hint">분석할 BizUnit 메소드를 에디터에서 선택한 뒤 ⌘⇧H 또는 우클릭 → Show NEXCORE Hierarchy 를 실행하세요.</div>';
+}
+</script>
+</body>
+</html>
