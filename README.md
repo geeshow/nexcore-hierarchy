@@ -14,8 +14,10 @@
 - **NEXCORE 두 호출 메커니즘 모두 추적**
   - `@BizUnitBind` 필드 직접 호출(local-call)
   - `AbstractBizUnit`의 `call*` / `sendOutbound*` 표준 API (문자열 ID 기반)
-- **호출 종류(kind) 시각화** — 색 = 카테고리, 실선/점선 = 동기/비동기, `TX` 뱃지 = 새 트랜잭션(RequiresNew)
+- **호출 종류(kind) 시각화** — 색 = 카테고리, 실선/점선 = 동기/비동기, `TX`·`AC`·`⏱` 뱃지 = 트랜잭션/실행 시점
+- **노드 좌·우 테두리 색** — 각 노드로 들어오는 **호출선 카테고리 색을 노드 양쪽 테두리에 동일하게** 입혀, 선과 노드를 색으로 바로 연결
 - **업무명 표시** — 각 노드에 `@BizMethod` 값 또는 Javadoc 첫 줄을 함께 표기
+- **컴팩트 레이아웃** — 좁은 툴윈도우에서도 한 화면에 더 많은 호출 관계가 들어오도록 조밀하게 배치
 - **전체 확장 / 전체 축소** — 연결된 모든 노드를 한 번에 펼치거나, 1차 연결만 보기
 - **소스 점프** — 노드 클릭 = 메소드 선언으로 이동, `↳` 클릭 = 실제 호출 코드 줄로 이동
 - **이미지 복사 / 저장** — 헤더~범례 전체를 PNG로 클립보드 복사하거나 파일 저장
@@ -23,7 +25,20 @@
 - **단축키 `⌘⌃H`** — NEXCORE 프로젝트에서만 이 뷰를 띄우고, 그 외 프로젝트에서는 기본 *Method Hierarchy* 가 그대로 동작
 - **구문(syntactic) 기반 분석** — 모듈/의존성이 연결되지 않은 stub 환경에서도 호출 관계를 잡아냄
 
-## 🎨 호출 종류(kind)
+## 🎨 호출선(라인) 읽는 법
+
+호출선은 **3가지 시각 요소**로 호출 방식을 한 번에 표현합니다.
+
+- **색 = 카테고리** — 동컴포넌트(회색) · 타컴포넌트(파랑) · 연동거래(초록) · 배치(주황) · 아웃바운드(청록)
+- **선 모양 = 동기 여부** — 실선(동기) / 점선(비동기)
+- **가운데 뱃지 = 트랜잭션·실행 시점** — `TX`(새 트랜잭션) · `AC`(커밋 후) · `⏱`(지연)
+
+같은 색은 노드의 **좌·우 테두리**에도 그대로 입혀져, 어떤 호출선이 어떤 노드로 이어지는지 색만으로 바로 보입니다.
+
+![호출선 읽는 법](docs/edge-guide.png)
+
+<details>
+<summary>호출 종류(kind) 전체 표 — 메소드 ↔ 라인 매핑</summary>
 
 | kind | 호출 표현 | 카테고리 / 색 | 선 스타일 |
 |---|---|---|---|
@@ -34,21 +49,23 @@
 | `linked-tx-sync` | `callService(...)` | 연동거래 / 초록 | 실선 |
 | `linked-tx-sync-new` | `callServiceByRequiresNew(...)` | 연동거래 / 초록 + `TX` | 실선 |
 | `linked-tx-async-now` | `callAsyncServiceNow(...)` | 연동거래 / 초록 | 점선 |
-| `linked-tx-async-after-commit` | `callAsyncServiceAfterCommit(...)` | 연동거래 / 초록 | 점선 |
-| `linked-tx-delay-async` | `callDelayAsyncService(...)` | 연동거래 / 초록 | 점선 |
+| `linked-tx-async-after-commit` | `callAsyncServiceAfterCommit(...)` | 연동거래 / 초록 + `AC` | 점선 |
+| `linked-tx-delay-async` | `callDelayAsyncService(...)` | 연동거래 / 초록 + `⏱` | 점선 |
 | `batch-now` | `callBatchJobNow(...)` | 배치 / 주황 | 실선 |
-| `batch-after-commit` | `callBatchJobAfterCommit(...)` | 배치 / 주황 | 점선 |
+| `batch-after-commit` | `callBatchJobAfterCommit(...)` | 배치 / 주황 + `AC` | 점선 |
 | `fep-sync` / `edw-sync` | `callOutbound(KIND_FEP / KIND_EDW_*, ...)` | 아웃바운드 / 청록 | 실선 |
-| `fep-async-now` / `fep-async-after-commit` | `sendOutbound*(KIND_FEP, ...)` | 아웃바운드 / 청록 | 점선 |
+| `fep-async-now` / `fep-async-after-commit` | `sendOutbound*(KIND_FEP, ...)` | 아웃바운드 / 청록 (+`AC`) | 점선 |
 | `kafka-publish` | `sendOutboundNow(KIND_KAFKA, ...)` | 아웃바운드 / 청록 | 점선 |
+
+</details>
 
 ## 🧩 노드 타입
 
 | 뱃지 | 유닛 | 설명 |
 |---|---|---|
-| `PM` | ProcessUnit (`P*`) | 거래 진입점(endpoint) |
-| `FM` | FunctionUnit (`F*`) | 업무 로직 |
-| `DM` | DataUnit (`D*`) | DB 접근 |
+| `PU` | ProcessUnit (`P*`) | 거래 진입점(endpoint) |
+| `FU` | FunctionUnit (`F*`) | 업무 로직 |
+| `DU` | DataUnit (`D*`) | DB 접근 |
 | `SVC` | 연동거래 | 외부 서비스(소스 없음) |
 | `BATCH` | 배치 JOB | 외부 배치(소스 없음) |
 | `OUT` | 아웃바운드 | FEP / EDW / Kafka(소스 없음) |
