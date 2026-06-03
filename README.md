@@ -85,8 +85,9 @@
 
 ## ⚙️ 요구사항
 
-- IntelliJ IDEA **2024.2 ~ 2024.3** (Community / Ultimate)
-- 빌드: **JDK 21**
+- IntelliJ IDEA **2024.2 ~ 2025.3** (Community / Ultimate) — build `242` ~ `253`
+  - JetBrains **Plugin Verifier** 로 2024.2 / 2024.3 / 2025.1 / 2025.2 / 2025.3 전 버전 호환 확인
+- 빌드: **JDK 21**, **Gradle 9.5.1**, **Kotlin 2.2**
 
 ## 🔍 동작 방식
 

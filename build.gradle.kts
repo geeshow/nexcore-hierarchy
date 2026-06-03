@@ -1,7 +1,7 @@
 plugins {
     id("java")
-    id("org.jetbrains.kotlin.jvm") version "1.9.25"
-    id("org.jetbrains.intellij.platform") version "2.1.0"
+    id("org.jetbrains.kotlin.jvm") version "2.2.0"
+    id("org.jetbrains.intellij.platform") version "2.16.0"
 }
 
 group = "com.nexcore"
@@ -16,11 +16,13 @@ repositories {
 
 dependencies {
     intellijPlatform {
-        // 대상 IDE: IntelliJ IDEA Community 2024.2.x
-        intellijIdeaCommunity("2024.2.5")
-        // NEXCORE 는 순수 Java 프레임웍 → Java PSI 만 의존 (Kotlin PSI 불필요)
+        // 최신 SDK로 빌드(2025.3 / build 253). sinceBuild 은 242 로 낮춰 2024.2 까지 하위호환.
+        // useInstaller=false → .dmg 설치본 대신 intellij-repository 의 zip 아티팩트 사용(해당 버전은 zip 만 존재)
+        intellijIdeaCommunity("2025.3") {
+            useInstaller = false
+        }
+        // NEXCORE 는 순수 Java 프레임웍 → Java PSI 만 의존
         bundledPlugin("com.intellij.java")
-        instrumentationTools()
     }
 }
 
@@ -28,7 +30,14 @@ intellijPlatform {
     pluginConfiguration {
         ideaVersion {
             sinceBuild = "242"
-            untilBuild = "243.*"
+            untilBuild = "253.*"
+        }
+    }
+
+    // 호환성 검증: 지원 범위(2024.2 ~ 2025.3)의 권장 IDE 들에 대해 plugin verifier 실행
+    pluginVerification {
+        ides {
+            recommended()
         }
     }
 }
@@ -43,9 +52,8 @@ tasks.named("buildSearchableOptions") {
 }
 
 // runIde 샌드박스에서 번들 Gradle 플러그인 비활성화.
-// 사유: 2024.2.5 의 GradleJvmSupportMatrix 가 최신 jvmcompat 데이터의 "Java 25" 를 파싱 못 해
-//       프로젝트 오픈 시 startup activity 가 IllegalArgumentException 으로 깨진다.
-//       본 플러그인/Maven 샘플은 Gradle 에 의존하지 않으므로 테스트 샌드박스에서만 끈다(배포 jar 무관).
+// 사유: 일부 IDE 빌드의 GradleJvmSupportMatrix 가 최신 jvmcompat 데이터의 Java 버전을 파싱 못 해
+//       프로젝트 오픈 시 startup activity 가 예외로 깨진다. 본 플러그인/Maven 샘플은 Gradle 미의존.
 val writeDisabledPlugins = tasks.register("writeDisabledPlugins") {
     dependsOn("prepareSandbox")
     doLast {

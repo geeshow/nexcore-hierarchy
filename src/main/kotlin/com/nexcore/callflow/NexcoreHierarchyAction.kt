@@ -1,34 +1,31 @@
 package com.nexcore.callflow
 
-import com.intellij.ide.hierarchy.actions.BrowseMethodHierarchyAction
+import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys
 
 /**
- * ⌘⇧H 단축키 액션. 플랫폼 기본 "MethodHierarchy" 액션을 override 하여 동일 단축키를 단독 점유한다.
+ * ⌘⌃H 단축키 액션.
  *
  *  - NEXCORE 프로젝트  : NEXCORE Hierarchy(컴포넌트 호출 관계도) 를 띄운다.
- *  - 그 외 프로젝트    : 보관해 둔 기본 Method Hierarchy 액션에 그대로 위임 → 기존 계층 패널.
+ *  - 그 외 프로젝트    : 플랫폼 기본 "MethodHierarchy" 액션을 ActionManager.tryToExecute 로 실행.
  *
- * BrowseMethodHierarchyAction 은 final 이라 상속 불가 → 인스턴스를 만들어 위임한다.
+ * 위임은 모두 public API(ActionManager#getAction / #tryToExecute)만 사용한다.
+ * (AnAction#update/#actionPerformed 직접 호출은 @OverrideOnly, ActionUtil/BrowseMethodHierarchyAction 은
+ *  @Internal 이라 plugin verifier 에서 막힘)
  */
 class NexcoreHierarchyAction : AnAction() {
-
-    private val methodHierarchy = BrowseMethodHierarchyAction()
 
     override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
 
     override fun update(e: AnActionEvent) {
         val project = e.project
-        if (project != null && NexcoreHierarchy.isNexcoreProject(project)) {
-            e.presentation.text = "NEXCORE Hierarchy"
-            e.presentation.isEnabledAndVisible =
-                e.getData(CommonDataKeys.EDITOR) != null && e.getData(CommonDataKeys.PSI_FILE) != null
-        } else {
-            methodHierarchy.update(e)
-        }
+        val hasContext = e.getData(CommonDataKeys.EDITOR) != null && e.getData(CommonDataKeys.PSI_FILE) != null
+        val nexcore = project != null && NexcoreHierarchy.isNexcoreProject(project)
+        e.presentation.text = if (nexcore) "NEXCORE Hierarchy" else "Method Hierarchy"
+        e.presentation.isEnabledAndVisible = hasContext
     }
 
     override fun actionPerformed(e: AnActionEvent) {
@@ -38,7 +35,10 @@ class NexcoreHierarchyAction : AnAction() {
             val psiFile = e.getData(CommonDataKeys.PSI_FILE) ?: return
             NexcoreHierarchy.show(project, editor, psiFile)
         } else {
-            methodHierarchy.actionPerformed(e)
+            val am = ActionManager.getInstance()
+            val methodHierarchy = am.getAction("MethodHierarchy") ?: return
+            val input = e.inputEvent ?: return
+            am.tryToExecute(methodHierarchy, input, input.component, e.place, true)
         }
     }
 }

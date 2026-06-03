@@ -118,7 +118,8 @@ class CallFlowPanelService(private val project: Project) {
         val img = decodeImage(dataUrl) ?: return
         ApplicationManager.getApplication().invokeLater {
             if (project.isDisposed) return@invokeLater
-            val descriptor = FileSaverDescriptor("이미지 저장", "NEXCORE Hierarchy 다이어그램을 PNG 로 저장", "png")
+            // 가변인자(String...) 생성자로 바인딩되게 spread 사용 — 2024.2 에는 (String,String,String) 스칼라 생성자가 없음(호환)
+            val descriptor = FileSaverDescriptor("이미지 저장", "NEXCORE Hierarchy 다이어그램을 PNG 로 저장", *arrayOf("png"))
             val dialog = FileChooserFactory.getInstance().createSaveFileDialog(descriptor, project)
             val safe = baseId.replace(Regex("[^A-Za-z0-9._-]"), "_").ifEmpty { "diagram" }
             val wrapper = dialog.save(null as VirtualFile?, "nexcore-hierarchy-$safe.png") ?: return@invokeLater
