@@ -1,5 +1,7 @@
 package com.nexcore.callflow
 
+import com.intellij.openapi.application.ModalityState
+import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.application.runReadAction
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.project.DumbService
@@ -10,6 +12,8 @@ import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiFile
 import com.intellij.psi.search.FilenameIndex
 import com.intellij.psi.search.GlobalSearchScope
+import com.intellij.util.concurrency.AppExecutorUtil
+import java.util.concurrent.Callable
 
 /**
  * NEXCORE Hierarchy 공통 로직 — 커서 메소드 분석/표시, 그리고 "NEXCORE 프로젝트" 판별.
@@ -19,23 +23,32 @@ object NexcoreHierarchy {
 
     private val NEXCORE_PROJECT = Key.create<Boolean>("nexcore.callflow.isNexcoreProject")
 
-    /** 커서 위치의 BizUnit 메소드를 분석해 툴윈도우에 표시. */
+    /**
+     * 커서 위치의 BizUnit 메소드를 분석해 툴윈도우에 표시.
+     * 분석(인덱스/참조 검색)은 무거우므로 **백그라운드 비차단 read action** 에서 수행하고,
+     * 결과만 EDT 로 돌아와 표시한다(“Slow operations on EDT” 회피, UI 프리징 방지).
+     */
     fun show(project: Project, editor: Editor, psiFile: PsiFile) {
-        val method = runReadAction {
-            val element = psiFile.findElementAt(editor.caretModel.offset) ?: return@runReadAction null
-            CallGraphAnalyzer.enclosingMethod(element)
-        }
-        if (method == null) {
-            Messages.showInfoMessage(
-                project,
-                "커서를 PU/FU/DU 메소드(예: pACU0001, fAC0001, s001) 안에 둔 뒤 다시 실행해주세요.",
-                "NEXCORE Hierarchy",
-            )
-            return
-        }
-        val result = CallGraphAnalyzer.analyze(project, method)
-        CallFlowPanelService.getInstance(project)
-            .show(result.baseId, result.graphJson, result.locations, result.edgeLocations)
+        val offset = editor.caretModel.offset
+        ReadAction.nonBlocking(Callable {
+            val element = psiFile.findElementAt(offset) ?: return@Callable null
+            val method = CallGraphAnalyzer.enclosingMethod(element) ?: return@Callable null
+            CallGraphAnalyzer.analyze(project, method)
+        })
+            .inSmartMode(project)
+            .finishOnUiThread(ModalityState.defaultModalityState()) { result ->
+                if (result == null) {
+                    Messages.showInfoMessage(
+                        project,
+                        "커서를 PU/FU/DU 메소드(예: pACU0001, fAC0001, s001) 안에 둔 뒤 다시 실행해주세요.",
+                        "NEXCORE Hierarchy",
+                    )
+                } else {
+                    CallFlowPanelService.getInstance(project)
+                        .show(result.baseId, result.graphJson, result.locations, result.edgeLocations)
+                }
+            }
+            .submit(AppExecutorUtil.getAppExecutorService())
     }
 
     /**

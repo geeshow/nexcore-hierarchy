@@ -1,7 +1,8 @@
 package com.nexcore.callflow
 
 import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.application.runReadAction
+import com.intellij.openapi.application.ModalityState
+import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.intellij.openapi.fileChooser.FileChooserFactory
@@ -13,6 +14,7 @@ import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.wm.ToolWindowManager
 import com.intellij.psi.PsiManager
 import com.intellij.ui.jcef.JBCefBrowser
+import com.intellij.util.concurrency.AppExecutorUtil
 import java.awt.Image
 import java.awt.Toolkit
 import java.awt.datatransfer.DataFlavor
@@ -20,6 +22,7 @@ import java.awt.datatransfer.Transferable
 import java.awt.datatransfer.UnsupportedFlavorException
 import java.io.ByteArrayInputStream
 import java.util.Base64
+import java.util.concurrent.Callable
 import javax.imageio.ImageIO
 
 /**
@@ -89,20 +92,23 @@ class CallFlowPanelService(private val project: Project) {
         }
     }
 
-    /** 새로고침: 저장된 기준 메소드 위치에서 PsiMethod 를 다시 찾아 재분석. */
+    /** 새로고침: 저장된 기준 메소드 위치에서 PsiMethod 를 다시 찾아 재분석(백그라운드). */
     fun refresh() {
         val loc = baseLoc ?: return
-        ApplicationManager.getApplication().invokeLater {
-            if (project.isDisposed) return@invokeLater
-            val method = runReadAction {
-                if (!loc.file.isValid) return@runReadAction null
-                val psiFile = PsiManager.getInstance(project).findFile(loc.file) ?: return@runReadAction null
-                val el = psiFile.findElementAt(loc.offset) ?: return@runReadAction null
-                CallGraphAnalyzer.enclosingMethod(el)
-            } ?: return@invokeLater
-            val result = CallGraphAnalyzer.analyze(project, method)
-            show(result.baseId, result.graphJson, result.locations, result.edgeLocations)
-        }
+        ReadAction.nonBlocking(Callable {
+            if (project.isDisposed || !loc.file.isValid) return@Callable null
+            val psiFile = PsiManager.getInstance(project).findFile(loc.file) ?: return@Callable null
+            val el = psiFile.findElementAt(loc.offset) ?: return@Callable null
+            val method = CallGraphAnalyzer.enclosingMethod(el) ?: return@Callable null
+            CallGraphAnalyzer.analyze(project, method)
+        })
+            .inSmartMode(project)
+            .finishOnUiThread(ModalityState.defaultModalityState()) { result ->
+                if (result != null) {
+                    show(result.baseId, result.graphJson, result.locations, result.edgeLocations)
+                }
+            }
+            .submit(AppExecutorUtil.getAppExecutorService())
     }
 
     /** 웹뷰가 만든 PNG data-url 을 시스템 클립보드에 이미지로 복사. */
