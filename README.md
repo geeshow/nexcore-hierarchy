@@ -72,6 +72,14 @@
 
 ## 📦 설치
 
+### 0) 미리 빌드된 zip 내려받기 (가장 빠름)
+
+직접 빌드하지 않고 **[Releases](https://github.com/geeshow/nexcore-hierarchy/releases/latest)** 에서 zip 을 바로 받을 수 있습니다.
+
+> ⬇️ **[nexcore-hierarchy-0.1.0.zip 내려받기](https://github.com/geeshow/nexcore-hierarchy/releases/latest/download/nexcore-hierarchy-0.1.0.zip)**
+
+내려받은 뒤 아래 **[2) IDE 에 설치](#2-ide-에-설치-install-plugin-from-disk)** 로 바로 진행하세요. (직접 빌드하려면 1) 단계 참고)
+
 ### 1) 설치용 zip 빌드
 
 > 빌드에는 **JDK 21** 이 필요합니다. (`JAVA_HOME` 이 21을 가리키는지 확인)
